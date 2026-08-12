@@ -1,0 +1,119 @@
+[
+  {
+    "factor": "highway_vs_sideroad",
+    "pole_a": "highway",
+    "pole_b": "street-sidewalk",
+    "list_a": "group11_highway.list",
+    "list_b": "group12_sideroadview.list",
+    "paper_name": "Camera elevation",
+    "level": 1
+  },
+  {
+    "factor": "closeview_vs_wideview",
+    "pole_a": "close-view",
+    "pole_b": "wide-view",
+    "list_a": "group17_closeview.list",
+    "list_b": "group18_wideview.list",
+    "paper_name": "Field of view",
+    "level": 1
+  },
+  {
+    "factor": "singleview_vs_multiview",
+    "pole_a": "singleview",
+    "pole_b": "multiview",
+    "list_a": "group5_singleview.list",
+    "list_b": "group6_multiview.list",
+    "paper_name": "Camera continuity",
+    "level": 1
+  },
+  {
+    "factor": "color_vs_grayscale",
+    "pole_a": "colored",
+    "pole_b": "grayscale",
+    "list_a": "group3_color.list",
+    "list_b": "group4_grayscale.list",
+    "paper_name": "Color encoding",
+    "level": 1
+  },
+  {
+    "factor": "highresolution_vs_lowresolution",
+    "pole_a": "low-res",
+    "pole_b": "high-res",
+    "list_a": "group21_lowres.list",
+    "list_b": "group22_highres.list",
+    "paper_name": "Spatial resolution",
+    "level": 1
+  },
+  {
+    "factor": "outdoor_vs_indoor",
+    "pole_a": "outdoor",
+    "pole_b": "indoor",
+    "list_a": "group1_outdoors.list",
+    "list_b": "group2_indoors.list",
+    "paper_name": "Setting",
+    "level": 2
+  },
+  {
+    "factor": "few-person_vs_crowd",
+    "pole_a": "1-4persons",
+    "pole_b": "4+persons",
+    "list_a": "group15_persons1-4.list",
+    "list_b": "group16_persons4plus.list",
+    "paper_name": "Number of people",
+    "level": 2
+  },
+  {
+    "factor": "singleact_vs_multiact",
+    "pole_a": "singleactivity",
+    "pole_b": "multiactivity",
+    "list_a": "group7_singleactivity.list",
+    "list_b": "group8_multiactivity.list",
+    "paper_name": "Concurrent activity",
+    "level": 2
+  },
+  {
+    "factor": "highmotion_vs_lowmotion",
+    "pole_a": "low-motion",
+    "pole_b": "high-motion",
+    "list_a": "group19_lowmotion.list",
+    "list_b": "group20_highmotion.list",
+    "paper_name": "Motion energy",
+    "level": 1
+  },
+  {
+    "factor": "shopshelves_vs_cashier",
+    "pole_a": "shop-shelves",
+    "pole_b": "shop-cashier",
+    "list_a": "group9_shopshelves.list",
+    "list_b": "group10_shopcashair.list",
+    "paper_name": "Viewpoint",
+    "level": 2
+  },
+  {
+    "factor": "private_area_vs_gasstation",
+    "pole_a": "private-house-facade",
+    "pole_b": "gas-station",
+    "list_a": "group13_privatearea.list",
+    "list_b": "group14_gasstation.list",
+    "paper_name": "Location type (residential / fuel)",
+    "level": 2
+  },
+  {
+    "factor": "private_area_vs_commercial",
+    "pole_a": "private-house-facade",
+    "pole_b": "shop-shelves",
+    "list_a": "group13_privatearea.list",
+    "list_b": "group9_shopshelves.list",
+    "paper_name": "Location type (residential / commercial)",
+    "level": 2
+  },
+  {
+    "factor": "commercial_vs_gasstation",
+    "pole_a": "shop-shelves",
+    "pole_b": "gas-station",
+    "list_a": "group9_shopshelves.list",
+    "list_b": "group14_gasstation.list",
+    "paper_name": "Location type (fuel / commercial)",
+    "level": 2
+  }
+]
