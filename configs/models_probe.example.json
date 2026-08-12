@@ -1,0 +1,14 @@
+{
+  "models": {
+    "backbone": {
+      "probe": "/path/to/preclassifier_features/",
+      "gt": "/path/to/ucf_gt_videomaev2.npy",
+      "annotation": "/path/to/UCF_Annotation.txt",
+      "train_probe": "/path/to/train_features/",
+      "train_gt": "/path/to/ucf_train_gt.json",
+      "train_ann": "/path/to/UCF_Train_Annotation.txt",
+      "file_suffix": null,
+      "frame_level": false
+    }
+  }
+}

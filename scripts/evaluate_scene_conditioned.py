@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Scene-conditioned AUC and Delta_scene for each factor."""
+"""Scene-conditioned AUC and Delta_scene (Supp. S1.2)."""
 
 from __future__ import annotations
 
@@ -34,17 +34,13 @@ def main():
     args = ap.parse_args()
 
     flat_s, flat_g = load_model_arrays(
-        args.pred,
-        gt_path=args.gt,
-        train_gt_path=args.train_gt,
-        annotation_path=args.annotation,
+        args.pred, gt_path=args.gt, train_gt_path=args.train_gt, annotation_path=args.annotation
     )
     pairs = load_scene_pairs(args.pairs, args.lists)
     units = collect_video_units(flat_s, flat_g)
     attach_scene_membership(units, pairs)
 
-    rows = []
-    matrix_rows = []
+    rows, matrix_rows = [], []
     for sp in pairs:
         m = scene_conditioned(units, sp["factor"])
         row = {
@@ -62,8 +58,7 @@ def main():
         rows.append(row)
         d = m["Delta_scene"]
         print(
-            f"{sp['factor']:32s}  ref={m['ReferenceAUC']:.3f}  "
-            f"cond={m['SceneConditionedAUC']:.3f}  d={d:+.4f}"
+            f"{sp['factor']:32s}  ref={m['ReferenceAUC']:.3f}  cond={m['SceneConditionedAUC']:.3f}  d={d:+.4f}"
             if d is not None
             else f"{sp['factor']:32s}  incomplete"
         )
@@ -79,22 +74,12 @@ def main():
         w.writeheader()
         w.writerows(rows)
     print(f"wrote {path}")
-
     if matrix_rows:
         mpath = args.out / f"pair_matrix_{args.tag}.csv"
-        # flatten nested dict fields for CSV
-        flat = []
-        for r in matrix_rows:
-            fr = {k: v for k, v in r.items() if k not in ("n_pos", "n_neg")}
-            fr["n_pos_A"] = r["n_pos"]["A"]
-            fr["n_pos_B"] = r["n_pos"]["B"]
-            fr["n_neg_A"] = r["n_neg"]["A"]
-            fr["n_neg_B"] = r["n_neg"]["B"]
-            flat.append(fr)
         with open(mpath, "w", newline="") as fh:
-            w = csv.DictWriter(fh, fieldnames=list(flat[0].keys()))
+            w = csv.DictWriter(fh, fieldnames=list(matrix_rows[0].keys()))
             w.writeheader()
-            w.writerows(flat)
+            w.writerows(matrix_rows)
         print(f"wrote {mpath}")
 
 

@@ -1,4 +1,4 @@
-"""Shared AUC helpers."""
+"""Shared AUC and video helpers."""
 
 from __future__ import annotations
 
@@ -18,29 +18,23 @@ def auc(labels, scores):
 
 
 def fast_auc(labels, scores):
-    """Mann-Whitney AUC via average ranks (bootstrap path)."""
     labels = np.asarray(labels).astype(bool)
     scores = np.asarray(scores, dtype=np.float64)
     n_pos = int(labels.sum())
     n_neg = scores.size - n_pos
     if n_pos == 0 or n_neg == 0:
         return None
-    try:
-        from scipy.stats import rankdata
-
-        ranks = rankdata(scores, method="average")
-    except Exception:
-        order = np.argsort(scores, kind="mergesort")
-        ranks = np.empty(scores.size, dtype=np.float64)
-        sorted_s = scores[order]
-        i = 0
-        n = scores.size
-        while i < n:
-            j = i + 1
-            while j < n and sorted_s[j] == sorted_s[i]:
-                j += 1
-            ranks[order[i:j]] = 0.5 * (i + j + 1)
-            i = j
+    order = np.argsort(scores, kind="mergesort")
+    ranks = np.empty(scores.size, dtype=np.float64)
+    sorted_s = scores[order]
+    i = 0
+    n = scores.size
+    while i < n:
+        j = i + 1
+        while j < n and sorted_s[j] == sorted_s[i]:
+            j += 1
+        ranks[order[i:j]] = 0.5 * (i + j + 1)
+        i = j
     return float((ranks[labels].sum() - n_pos * (n_pos + 1) / 2.0) / (n_pos * n_neg))
 
 
@@ -58,12 +52,35 @@ def to_snippets(scores, labels, snippet=16):
     labels = np.asarray(labels[:n], dtype=float)
     T = max(1, n // snippet)
     edges = np.linspace(0, n, T + 1, dtype=int)
-    widths = edges[1:] - edges[:-1]
+    widths = np.maximum(edges[1:] - edges[:-1], 1)
     csum = np.concatenate([[0.0], np.cumsum(scores)])
-    s = (csum[edges[1:]] - csum[edges[:-1]]) / np.maximum(widths, 1)
+    s = (csum[edges[1:]] - csum[edges[:-1]]) / widths
     cany = np.concatenate([[0.0], np.cumsum(labels > 0)])
     g = ((cany[edges[1:]] - cany[edges[:-1]]) > 0).astype(float)
     return s, g
+
+
+def downsample_gt(gt_frames, T):
+    gt_frames = np.asarray(gt_frames, dtype=float)
+    if len(gt_frames) == T:
+        return gt_frames
+    edges = np.linspace(0, len(gt_frames), T + 1, dtype=int)
+    return np.array(
+        [gt_frames[edges[i] : edges[i + 1]].any() for i in range(T)],
+        dtype=float,
+    )
+
+
+def cosine_rows(X, proto):
+    """Cosine similarity of each row of X to proto. Both float arrays."""
+    X = np.asarray(X, dtype=np.float64)
+    proto = np.asarray(proto, dtype=np.float64).ravel()
+    pn = np.linalg.norm(proto)
+    if pn < 1e-12:
+        return np.zeros(len(X), dtype=np.float64)
+    xn = np.linalg.norm(X, axis=1)
+    xn = np.maximum(xn, 1e-12)
+    return (X @ proto) / (xn * pn)
 
 
 def mann_whitney_auc(pos, neg):
@@ -71,6 +88,7 @@ def mann_whitney_auc(pos, neg):
     neg = np.asarray(neg, dtype=float)
     if pos.size == 0 or neg.size == 0:
         return None
-    labels = np.concatenate([np.ones(pos.size), np.zeros(neg.size)])
-    scores = np.concatenate([pos, neg])
-    return auc(labels, scores)
+    return auc(
+        np.concatenate([np.ones(pos.size), np.zeros(neg.size)]),
+        np.concatenate([pos, neg]),
+    )

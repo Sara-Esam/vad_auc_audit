@@ -1,4 +1,4 @@
-"""Scene-conditioned anomaly AUC and control gap (Supp. S1.2)."""
+"""Scene-conditioned anomaly AUC (Supp. S1.2)."""
 
 from __future__ import annotations
 
@@ -10,8 +10,6 @@ from .metrics import auc, mann_whitney_auc
 def _support(units):
     return {
         "n_videos": len(units),
-        "n_anom_videos": sum(1 for u in units if u["n_anom_frames"] > 0),
-        "n_norm_videos": sum(1 for u in units if u["n_norm_frames"] > 0),
         "n_anom_frames": sum(u["n_anom_frames"] for u in units),
         "n_norm_frames": sum(u["n_norm_frames"] for u in units),
     }
@@ -26,22 +24,18 @@ def _pooled_auc(units):
 
 
 def scene_conditioned(units, factor):
-    """
-    ReferenceAUC, within-pole AUCs, SceneConditionedAUC, and Delta_scene.
-
-    Delta_scene = ReferenceAUC - 0.5 * (AUC_A + AUC_B).
-    """
+    """ReferenceAUC, within-pole AUCs, SceneConditionedAUC, Delta_scene."""
     dj = [u for u in units if u["scenes"].get(factor) in ("A", "B")]
     ua = [u for u in dj if u["scenes"].get(factor) == "A"]
     ub = [u for u in dj if u["scenes"].get(factor) == "B"]
 
+    sa, sb = _support(ua), _support(ub)
     ref = _pooled_auc(dj)
-    auc_a = _pooled_auc(ua) if _support(ua)["n_anom_frames"] and _support(ua)["n_norm_frames"] else None
-    auc_b = _pooled_auc(ub) if _support(ub)["n_anom_frames"] and _support(ub)["n_norm_frames"] else None
+    auc_a = _pooled_auc(ua) if sa["n_anom_frames"] and sa["n_norm_frames"] else None
+    auc_b = _pooled_auc(ub) if sb["n_anom_frames"] and sb["n_norm_frames"] else None
     can = auc_a is not None and auc_b is not None
     cond = 0.5 * (auc_a + auc_b) if can else None
     gap = (ref - cond) if (can and ref is not None) else None
-
     return {
         "factor": factor,
         "n_dj": len(dj),
@@ -50,13 +44,13 @@ def scene_conditioned(units, factor):
         "AUC_B": auc_b,
         "SceneConditionedAUC": cond,
         "Delta_scene": gap,
-        "support_A": _support(ua),
-        "support_B": _support(ub),
+        "support_A": sa,
+        "support_B": sb,
     }
 
 
 def pair_matrix(units, factor):
-    """Four pair-type AUCs and weights on D_j (Table S7)."""
+    """Four pair-type AUCs and weights on D_j."""
     buckets = {"A": {"pos": [], "neg": []}, "B": {"pos": [], "neg": []}}
     for u in units:
         pole = u["scenes"].get(factor)
@@ -65,7 +59,6 @@ def pair_matrix(units, factor):
         y, s = u["labels"], u["scores"]
         buckets[pole]["pos"].append(s[y == 1])
         buckets[pole]["neg"].append(s[y == 0])
-
     for p in ("A", "B"):
         buckets[p]["pos"] = (
             np.concatenate(buckets[p]["pos"]) if buckets[p]["pos"] else np.array([])
@@ -73,15 +66,13 @@ def pair_matrix(units, factor):
         buckets[p]["neg"] = (
             np.concatenate(buckets[p]["neg"]) if buckets[p]["neg"] else np.array([])
         )
-
     n_pos = {p: int(buckets[p]["pos"].size) for p in ("A", "B")}
     n_neg = {p: int(buckets[p]["neg"].size) for p in ("A", "B")}
     n_pos_tot = n_pos["A"] + n_pos["B"]
     n_neg_tot = n_neg["A"] + n_neg["B"]
     if n_pos_tot == 0 or n_neg_tot == 0:
         return None
-
-    out = {"factor": factor, "n_pos": n_pos, "n_neg": n_neg}
+    out = {"factor": factor}
     recon = 0.0
     for sp in ("A", "B"):
         for sn in ("A", "B"):

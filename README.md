@@ -1,35 +1,39 @@
 # Auditing Frame-Level AUC in WSVAD
 
-Public evaluation protocol and UCF-Crime scene-factor annotations for:
+Evaluation protocol and UCF-Crime scene-factor annotations for:
 
 > *Auditing Frame-Level AUC in Weakly Supervised Video Anomaly Detection:
 > Granularity, Resolution, and Scene Bias*
 
-The code reads **existing frame-level predictions**. No model training is required.
+Computes metrics from **existing predictions** or **pre-classifier probe features**. No training code.
 
-## Contents
+## Layout
 
 ```
-annotations/          scene-factor lists, pairs, and per-video tags
-vad_eval/             protocol library
-scripts/              command-line entry points
-configs/              example model path config
+annotations/     scene-factor lists, pairs, per-video tags
+vad_eval/        protocol library
+scripts/         CLIs
+configs/         example model configs
 ```
 
-### Annotations
+## What each script does
 
-Twelve binary scene factors on UCF-Crime (recording properties and scene content).
-See [`annotations/FACTORS.md`](annotations/FACTORS.md).
+| Script | Role |
+|---|---|
+| `evaluate_granularity.py` | Global / per-category / within-video AUC (`--source scores` or `probe`) |
+| `evaluate_resolution.py` | Pairwise model comparison at one granularity (paired bootstrap) |
+| `evaluate_scene_bias.py` | Bias-AUC on normal frames (pooled + per-video bootstrap) |
+| `evaluate_scene_conditioned.py` | Scene-conditioned AUC and Δ_scene (Supp. S1.2) |
+| `plot_granularity.py` | Forest plot from `results.json` |
+| `plot_scene_bias.py` | Dot plot + heatmap from bias CSV |
 
-- `annotations/lists/*.list` — pole membership used in the paper
-- `annotations/scene_pairs.json` — factor panel
-- `annotations/scene_factors.json` — per-video tag lists
+### Scores vs probe
 
-### Protocol
-
-1. **Granularity-aware AUC** — global, per-category, and within-video readout of the same scores, with a paired video bootstrap for confidence intervals and resolved model comparisons.
-2. **Scene bias-AUC** — on normal frames only, treat scene pole A vs B as a binary label and measure how much the anomaly score separates recordings by scene (`0.5` = unbiased).
-3. **Scene-conditioned AUC** — anomaly-vs-normal AUC after removing cross-pole pairs; `Delta_scene = ReferenceAUC - SceneConditionedAUC`.
+- **scores** — read model frame predictions; apply three pairing rules.
+- **probe** — zero-shot prototype readout on pre-classifier embeddings:
+  - global prototypes → global AUC
+  - per-category prototypes → per-category AUC
+  - leave-one-out within-video prototypes → within-video AUC
 
 ## Setup
 
@@ -37,22 +41,33 @@ See [`annotations/FACTORS.md`](annotations/FACTORS.md).
 pip install -r requirements.txt
 ```
 
-Prediction format: nested dict `class_name -> video_id -> 1-D score array`, saved as `.npy` (`np.save(..., dict)`). GT uses the same nesting, or a flat test-GT array ordered by `UCF_Annotation.txt`.
-
 ## Usage
 
-Copy and edit `configs/models.example.json`, then:
-
 ```bash
-# three-granularity AUC + paired bootstrap (official 290-video test)
+# (1) three-granularity AUC on predictions
 python scripts/evaluate_granularity.py \
+  --source scores \
   --models configs/models.json \
   --annotation /path/to/UCF_Annotation.txt \
-  --scope test \
-  --n-boot 1000 \
+  --scope test --n-boot 1000 \
   --out outputs/granularity
 
-# scene bias-AUC (full prediction pool)
+# (1b) same protocol on probe features
+python scripts/evaluate_granularity.py \
+  --source probe \
+  --models configs/models_probe.json \
+  --out outputs/granularity_probe
+
+# (2) pairwise resolution at one granularity
+python scripts/evaluate_resolution.py \
+  --source scores \
+  --models configs/models.json \
+  --annotation /path/to/UCF_Annotation.txt \
+  --granularity within_video \
+  --n-boot 1000 \
+  --out outputs/resolution
+
+# (3) scene bias-AUC
 python scripts/evaluate_scene_bias.py \
   --pred /path/to/model_pre_dict.npy \
   --gt /path/to/model_gt_dict.npy \
@@ -60,24 +75,26 @@ python scripts/evaluate_scene_bias.py \
   --tag my_model \
   --out outputs/scene_bias
 
-# scene-conditioned AUC / Delta_scene
+# (4) figures
+python scripts/plot_granularity.py \
+  --results outputs/granularity/results.json \
+  --out outputs/figures
+
+python scripts/plot_scene_bias.py \
+  --csv outputs/scene_bias/scene_bias_my_model.csv \
+  --out outputs/figures
+
+# (5) scene-conditioned AUC
 python scripts/evaluate_scene_conditioned.py \
   --pred /path/to/model_pre_dict.npy \
   --gt /path/to/model_gt_dict.npy \
   --train-gt /path/to/ucf_train_gt.json \
-  --tag my_model \
-  --write-pair-matrix \
+  --tag my_model --write-pair-matrix \
   --out outputs/scene_conditioned
 ```
 
-## Prediction / GT conventions
-
-Video ids are normalized by stripping `.mp4` and a trailing `_x264`. Scene lists may use either form. For the full-pool scene audit, provide train-frame GT so normal frames inside training videos are labelled.
-
-## Citation
-
-If you use the annotations or protocol, please cite the paper (bibtex to be added upon publication).
+See `annotations/FACTORS.md` for scene-factor definitions.
 
 ## License
 
-MIT — see `LICENSE`. UCF-Crime videos remain under their original terms; this repository redistributes only scene-factor labels and evaluation code.
+MIT. UCF-Crime videos remain under their original terms; this repo redistributes scene-factor labels and evaluation code only.

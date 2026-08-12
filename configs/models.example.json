@@ -1,8 +1,13 @@
 {
   "models": {
-    "example_model": {
-      "pred": "/path/to/model_pre_dict.npy",
-      "gt": "/path/to/model_gt_dict.npy",
+    "model_a": {
+      "pred": "/path/to/model_a_pre_dict.npy",
+      "gt": "/path/to/model_a_gt_dict.npy",
+      "train_gt": "/path/to/ucf_train_gt.json"
+    },
+    "model_b": {
+      "pred": "/path/to/model_b_pre_dict.npy",
+      "gt": "/path/to/model_b_gt_dict.npy",
       "train_gt": "/path/to/ucf_train_gt.json"
     }
   }

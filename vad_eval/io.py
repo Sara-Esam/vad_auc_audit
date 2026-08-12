@@ -1,4 +1,4 @@
-"""I/O helpers for nested prediction/GT dicts and scene-factor lists."""
+"""Load predictions, ground truth, and scene-factor lists."""
 
 from __future__ import annotations
 
@@ -7,18 +7,24 @@ from pathlib import Path
 
 import numpy as np
 
+from .metrics import category_of
 
-def canonical_id(name: str) -> str:
+
+def canonical_id(name):
     name = str(name).strip()
     if name.endswith(".mp4"):
         name = name[:-4]
     if name.endswith("_x264"):
         name = name[: -len("_x264")]
+    if name.endswith(".npy"):
+        name = name[:-4]
     return name
 
 
-def is_normal_video(cid: str, class_name: str) -> bool:
-    return class_name == "Normal" or cid.lower().startswith("normal")
+def is_normal_video(cid, class_name=None):
+    if class_name == "Normal":
+        return True
+    return cid.lower().startswith("normal")
 
 
 def load_nested_dict(path):
@@ -30,13 +36,12 @@ def load_nested_dict(path):
 
 
 def flatten_scores(pred):
-    """Map canonical id -> (class_name, score_array)."""
     out = {}
     for cls, vids in pred.items():
         for vid, arr in vids.items():
             cid = canonical_id(vid)
             if cid not in out:
-                out[cid] = (cls, np.asarray(arr, dtype=float))
+                out[cid] = (cls, np.asarray(arr, dtype=float).ravel())
     return out
 
 
@@ -48,7 +53,7 @@ def flatten_gt(*dicts):
         for cls, vids in d.items():
             for vid, arr in vids.items():
                 cid = canonical_id(vid)
-                g = np.asarray(arr, dtype=float)
+                g = np.asarray(arr, dtype=float).ravel()
                 if g.size == 0:
                     continue
                 if cid not in out:
@@ -57,7 +62,6 @@ def flatten_gt(*dicts):
 
 
 def parse_annotation(annotation_path):
-    """Ordered (canonical_id, frame_count) from UCF_Annotation.txt."""
     entries = []
     with open(annotation_path) as fh:
         for line in fh:
@@ -69,8 +73,28 @@ def parse_annotation(annotation_path):
     return entries
 
 
+def sort_by_ann_file(ann_path):
+    with open(ann_path) as fh:
+        return [
+            line.strip().split()[0].split("/")[-1].split(".")[0] + ".npy"
+            for line in fh
+            if line.strip()
+        ]
+
+
+def ann_video_frame_counts(ann_path):
+    counts = {}
+    with open(ann_path) as fh:
+        for line in fh:
+            parts = line.strip().split()
+            if len(parts) < 2:
+                continue
+            key = parts[0].split("/")[-1].split(".")[0] + ".npy"
+            counts[key] = int(parts[1])
+    return counts
+
+
 def flat_gt_from_array(arr, annotation_path):
-    """Split a flat test-GT array ordered by UCF_Annotation.txt."""
     arr = np.asarray(arr, dtype=float).ravel()
     entries = parse_annotation(annotation_path)
     snippet = None
@@ -80,7 +104,6 @@ def flat_gt_from_array(arr, annotation_path):
             break
     if snippet is None:
         snippet = 1
-
     out = {}
     off = 0
     for vid, cnt in entries:
@@ -90,7 +113,7 @@ def flat_gt_from_array(arr, annotation_path):
     return out
 
 
-def load_test_gt(path, annotation_path):
+def load_test_gt(path, annotation_path=None):
     if str(path).endswith(".json"):
         with open(path) as fh:
             return flatten_gt(json.load(fh))
@@ -98,15 +121,16 @@ def load_test_gt(path, annotation_path):
     if obj.dtype == object and obj.ndim == 0:
         return flatten_gt(obj.item())
     if annotation_path is None:
-        raise ValueError("flat GT array requires --annotation")
+        raise ValueError("flat GT array requires annotation path")
     return flat_gt_from_array(obj, annotation_path)
 
 
-def merge_gt(test_map, train_nested):
+def merge_gt(test_map, train_nested=None):
     out = {k: v for k, v in test_map.items() if np.asarray(v).size > 0}
-    for k, v in flatten_gt(train_nested).items():
-        if k not in out:
-            out[k] = v
+    if train_nested:
+        for k, v in flatten_gt(train_nested).items():
+            if k not in out:
+                out[k] = v
     return out
 
 
@@ -139,6 +163,7 @@ def collect_video_units(flat_scores, flat_gt):
             {
                 "id": cid,
                 "class": cls,
+                "cat": category_of(cid),
                 "is_normal_video": is_normal_video(cid, cls),
                 "scores": s,
                 "labels": y,
@@ -147,6 +172,10 @@ def collect_video_units(flat_scores, flat_gt):
             }
         )
     return units
+
+
+def official_test_ids(annotation_path):
+    return {vid for vid, _ in parse_annotation(annotation_path)}
 
 
 def load_video_list(path):
@@ -160,17 +189,13 @@ def load_video_list(path):
 
 
 def load_scene_pairs(pairs_json, lists_dir):
-    """Load factor panel; return list of dicts with ids_a / ids_b."""
     lists_dir = Path(lists_dir)
     with open(pairs_json) as fh:
         specs = json.load(fh)
-
     pairs = []
     for sp in specs:
-        path_a = lists_dir / sp["list_a"]
-        path_b = lists_dir / sp["list_b"]
-        ids_a = load_video_list(path_a) if path_a.is_file() else set()
-        ids_b = load_video_list(path_b) if path_b.is_file() else set()
+        ids_a = load_video_list(lists_dir / sp["list_a"])
+        ids_b = load_video_list(lists_dir / sp["list_b"])
         both = ids_a & ids_b
         pairs.append(
             {
@@ -179,24 +204,18 @@ def load_scene_pairs(pairs_json, lists_dir):
                 "pole_b": sp.get("pole_b", "B"),
                 "ids_a": ids_a - both,
                 "ids_b": ids_b - both,
-                "n_ambiguous": len(both),
             }
         )
     return pairs
-
-
-def official_test_ids(annotation_path):
-    return {vid for vid, _ in parse_annotation(annotation_path)}
 
 
 def attach_scene_membership(units, pairs):
     for u in units:
         scenes = {}
         for sp in pairs:
-            cid = u["id"]
-            if cid in sp["ids_a"]:
+            if u["id"] in sp["ids_a"]:
                 scenes[sp["factor"]] = "A"
-            elif cid in sp["ids_b"]:
+            elif u["id"] in sp["ids_b"]:
                 scenes[sp["factor"]] = "B"
             else:
                 scenes[sp["factor"]] = None
