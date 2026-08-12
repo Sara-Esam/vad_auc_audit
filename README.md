@@ -4,6 +4,10 @@ Evaluation protocol and UCF-Crime scene-factor annotations for:
 
 > *Auditing Frame-Level AUC in Weakly Supervised Video Anomaly Detection:
 > Granularity, Resolution, and Scene Bias*
+> Sara Abdulaziz and Egor Bondarev 
+>
+> [![arXiv](https://img.shields.io/badge/arXiv-7942692-b31b1b.svg)](https://arxiv.org/abs/7942692)
+> [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](./LICENSE)
 
 Computes metrics from **existing predictions** or **pre-classifier probe features**. No training code.
 
@@ -97,4 +101,4 @@ See `annotations/FACTORS.md` for scene-factor definitions.
 
 ## License
 
-MIT. UCF-Crime videos remain under their original terms; this repo redistributes scene-factor labels and evaluation code only.
+Apache License 2.0 — see [`LICENSE`](./LICENSE). UCF-Crime videos remain under their original terms; this repository redistributes scene-factor labels and evaluation code only.
